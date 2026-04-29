@@ -2,10 +2,18 @@
 
 import Image from 'next/image';
 import { useChat } from 'ai/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { PersonaSelector } from './persona-selector';
 import { MessageBubble } from './message-bubble';
+import { ConversationList } from './conversation-list';
 import { cn } from '@/lib/utils';
+import {
+  loadConversations,
+  saveConversation,
+  generateId,
+  conversationTitle,
+} from '@/lib/storage';
+import type { Conversation } from '@/lib/storage';
 import type { Persona, KBSource, SourceDataEvent } from '@/lib/types';
 
 const PERSONA_STARTERS: Record<Persona, string[]> = {
@@ -45,7 +53,10 @@ export function ChatInterface() {
   const [persona, setPersona] = useState<Persona>('customer');
   const [sourcesMap, setSourcesMap] = useState<Record<string, KBSource[]>>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState<string>(() => generateId());
   const bottomRef = useRef<HTMLDivElement>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, data, setMessages, append } =
     useChat({
@@ -53,6 +64,30 @@ export function ChatInterface() {
       body: { persona },
     });
 
+  // Load conversations from localStorage on mount
+  useEffect(() => {
+    setConversations(loadConversations());
+  }, []);
+
+  // Persist conversation whenever messages change (debounced)
+  useEffect(() => {
+    if (messages.length === 0) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      const conv: Conversation = {
+        id: activeConvId,
+        title: conversationTitle(messages),
+        persona,
+        messages,
+        createdAt: conversations.find((c) => c.id === activeConvId)?.createdAt ?? Date.now(),
+        updatedAt: Date.now(),
+      };
+      saveConversation(conv);
+      setConversations(loadConversations());
+    }, 500);
+  }, [messages]);
+
+  // Extract sources from data stream and map to message IDs
   useEffect(() => {
     if (!data || data.length === 0) return;
     const sourceEvents = (data as unknown as SourceDataEvent[]).filter((d) => d?.type === 'sources');
@@ -70,10 +105,37 @@ export function ChatInterface() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
+  const startNewChat = useCallback(() => {
+    setMessages([]);
+    setSourcesMap({});
+    setActiveConvId(generateId());
+    setSidebarOpen(false);
+  }, [setMessages]);
+
+  const loadConversation = useCallback(
+    (conv: Conversation) => {
+      setActiveConvId(conv.id);
+      setPersona(conv.persona);
+      setMessages(conv.messages);
+      setSourcesMap({});
+      setSidebarOpen(false);
+    },
+    [setMessages]
+  );
+
+  const handleConversationDelete = useCallback(
+    (id: string) => {
+      setConversations(loadConversations());
+      if (id === activeConvId) startNewChat();
+    },
+    [activeConvId, startNewChat]
+  );
+
   const handlePersonaChange = (p: Persona) => {
     setPersona(p);
     setMessages([]);
     setSourcesMap({});
+    setActiveConvId(generateId());
     setSidebarOpen(false);
   };
 
@@ -87,58 +149,75 @@ export function ChatInterface() {
     <div className="flex h-[100dvh] bg-brand-50 overflow-hidden">
 
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex w-64 flex-shrink-0 bg-brand-800 flex-col py-6 px-4 overflow-y-auto">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-1">
-            <Image src="/sc-logo.png" alt="SmartCart" width={32} height={32} className="rounded-lg" />
-            <div>
-              <p className="text-white text-sm font-semibold leading-tight">SmartCart</p>
-              <p className="text-stone-400 text-[10px] leading-tight">Commerce</p>
-            </div>
+      <aside className="hidden md:flex w-64 flex-shrink-0 bg-brand-800 flex-col py-5 px-4 overflow-hidden">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 mb-6 flex-shrink-0">
+          <Image src="/sc-logo.png" alt="SmartCart" width={32} height={32} className="rounded-lg" />
+          <div>
+            <p className="text-white text-sm font-semibold leading-tight">SmartCart</p>
+            <p className="text-stone-400 text-[10px] leading-tight">Commerce</p>
           </div>
-          <p className="text-stone-500 text-[11px] mt-3 leading-snug">
-            AI-powered knowledge base assistant — 86 docs, 5 categories.
-          </p>
         </div>
-        <PersonaSelector value={persona} onChange={handlePersonaChange} />
-        <div className="mt-auto pt-6">
+
+        {/* Persona selector */}
+        <div className="flex-shrink-0 mb-5">
+          <PersonaSelector value={persona} onChange={handlePersonaChange} />
+        </div>
+
+        <div className="w-full h-px bg-stone-700 mb-4 flex-shrink-0" />
+
+        {/* Conversation history */}
+        <p className="text-xs font-medium text-stone-400 uppercase tracking-widest px-1 mb-2 flex-shrink-0">
+          History
+        </p>
+        <ConversationList
+          conversations={conversations}
+          activeId={activeConvId}
+          onSelect={loadConversation}
+          onDelete={handleConversationDelete}
+          onNew={startNewChat}
+        />
+
+        <div className="flex-shrink-0 pt-4 mt-2 border-t border-stone-700">
           <p className="text-[10px] text-stone-600 text-center">
             Powered by OpenAI + Pinecone
           </p>
         </div>
       </aside>
 
-      {/* ── Mobile sidebar drawer overlay ── */}
+      {/* ── Mobile sidebar drawer ── */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-40 flex">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setSidebarOpen(false)}
-          />
-          <aside className="relative z-50 w-72 bg-brand-800 flex flex-col py-6 px-4 overflow-y-auto">
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Image src="/sc-logo.png" alt="SmartCart" width={28} height={28} className="rounded-md" />
-                  <p className="text-white text-sm font-semibold">SmartCart</p>
-                </div>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="text-stone-400 hover:text-white p-1"
-                >
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-                  </svg>
-                </button>
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <aside className="relative z-50 w-72 bg-brand-800 flex flex-col py-5 px-4 overflow-hidden">
+            <div className="flex items-center justify-between mb-5 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Image src="/sc-logo.png" alt="SmartCart" width={28} height={28} className="rounded-md" />
+                <p className="text-white text-sm font-semibold">SmartCart</p>
               </div>
-              <p className="text-stone-500 text-[11px] leading-snug">
-                AI-powered knowledge base — 86 docs, 5 categories.
-              </p>
+              <button onClick={() => setSidebarOpen(false)} className="text-stone-400 hover:text-white p-1">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+                </svg>
+              </button>
             </div>
-            <PersonaSelector value={persona} onChange={handlePersonaChange} />
-            <div className="mt-auto pt-6">
-              <p className="text-[10px] text-stone-600 text-center">Powered by OpenAI + Pinecone</p>
+
+            <div className="flex-shrink-0 mb-4">
+              <PersonaSelector value={persona} onChange={handlePersonaChange} />
             </div>
+
+            <div className="w-full h-px bg-stone-700 mb-3 flex-shrink-0" />
+
+            <p className="text-xs font-medium text-stone-400 uppercase tracking-widest px-1 mb-2 flex-shrink-0">
+              History
+            </p>
+            <ConversationList
+              conversations={conversations}
+              activeId={activeConvId}
+              onSelect={loadConversation}
+              onDelete={handleConversationDelete}
+              onNew={startNewChat}
+            />
           </aside>
         </div>
       )}
@@ -149,7 +228,6 @@ export function ChatInterface() {
         {/* Header */}
         <header className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-stone-200 bg-white/60 backdrop-blur-sm flex-shrink-0">
           <div className="flex items-center gap-3">
-            {/* Mobile menu button */}
             <button
               className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg hover:bg-stone-100 text-stone-600 flex-shrink-0"
               onClick={() => setSidebarOpen(true)}
@@ -160,19 +238,17 @@ export function ChatInterface() {
                 <rect y="14" width="18" height="2" rx="1" />
               </svg>
             </button>
-            {/* Logo (mobile only) */}
             <div className="md:hidden flex items-center gap-2">
               <Image src="/sc-logo.png" alt="SmartCart" width={26} height={26} className="rounded-md" />
               <span className="text-sm font-semibold text-stone-800">SmartCart</span>
             </div>
-            {/* Desktop title */}
             <div className="hidden md:block">
               <h1 className="text-base font-semibold text-stone-800">Knowledge Assistant</h1>
               <p className="text-xs text-stone-400 mt-0.5">{PERSONA_SUBTITLES[persona]}</p>
             </div>
           </div>
 
-          {/* Mobile: persona pill tabs */}
+          {/* Mobile persona tabs */}
           <div className="flex md:hidden items-center gap-1 bg-stone-100 rounded-lg p-1">
             {(['customer', 'concierge', 'brand-partner'] as Persona[]).map((p) => (
               <button
@@ -180,9 +256,7 @@ export function ChatInterface() {
                 onClick={() => handlePersonaChange(p)}
                 className={cn(
                   'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all',
-                  persona === p
-                    ? 'bg-white text-stone-800 shadow-sm'
-                    : 'text-stone-500'
+                  persona === p ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500'
                 )}
               >
                 {p === 'brand-partner' ? 'Brand' : PERSONA_LABELS[p]}
@@ -190,10 +264,21 @@ export function ChatInterface() {
             ))}
           </div>
 
-          {/* Desktop: status indicator */}
-          <div className="hidden md:flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400" />
-            <span className="text-xs text-stone-400">Ready</span>
+          {/* Desktop status + new chat */}
+          <div className="hidden md:flex items-center gap-3">
+            <button
+              onClick={startNewChat}
+              className="text-xs text-stone-400 hover:text-stone-700 flex items-center gap-1.5 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M6 1v10M1 6h10" />
+              </svg>
+              New chat
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-400" />
+              <span className="text-xs text-stone-400">Ready</span>
+            </div>
           </div>
         </header>
 
@@ -246,13 +331,13 @@ export function ChatInterface() {
                 placeholder="Ask anything…"
                 rows={1}
                 disabled={isLoading}
-                className="flex-1 resize-none rounded-xl border border-stone-300 bg-white px-3 sm:px-4 py-3 text-base sm:text-sm text-stone-800 placeholder-stone-400 outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20 transition-all disabled:opacity-50 leading-relaxed"
+                className="flex-1 resize-none rounded-xl border border-stone-300 bg-white px-3 sm:px-4 py-3 text-stone-800 placeholder-stone-400 outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20 transition-all disabled:opacity-50 leading-relaxed"
                 style={{ minHeight: '48px', maxHeight: '140px', fontSize: '16px' }}
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="flex-shrink-0 w-11 h-11 sm:w-11 sm:h-11 rounded-xl bg-brand-800 text-white flex items-center justify-center hover:bg-stone-700 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="flex-shrink-0 w-11 h-11 rounded-xl bg-brand-800 text-white flex items-center justify-center hover:bg-stone-700 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                   <path d="M1.5 1.5l13 6.5-13 6.5V9.5l9-1.5-9-1.5V1.5z" />
@@ -288,10 +373,8 @@ function EmptyState({
         SmartCart Knowledge Base
       </h2>
       <p className="text-sm text-stone-500 mb-6 sm:mb-8 max-w-sm sm:max-w-md">
-        Ask anything about SmartCartCommerce — policies, operations, products, and platform
-        documentation.
+        Ask anything about SmartCartCommerce — policies, operations, products, and platform documentation.
       </p>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 w-full max-w-sm sm:max-w-lg">
         {starters.map((s) => (
           <button

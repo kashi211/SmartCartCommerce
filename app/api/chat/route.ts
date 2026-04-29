@@ -9,15 +9,21 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const { messages, persona = 'customer' } = await req.json();
 
-  const lastUserMessage = messages
-    .filter((m: { role: string }) => m.role === 'user')
-    .at(-1)?.content as string;
+  const userMessages = messages.filter((m: { role: string }) => m.role === 'user');
+  const lastUserMessage = userMessages.at(-1)?.content as string;
 
   if (!lastUserMessage) {
     return new Response('No user message found', { status: 400 });
   }
 
-  let sources = await retrieveContext(lastUserMessage, 6).catch((err) => {
+  // Build retrieval query from last 3 user messages so follow-up questions
+  // like "what about Canada?" have enough context to retrieve relevant chunks
+  const retrievalQuery = userMessages
+    .slice(-3)
+    .map((m: { content: string }) => m.content)
+    .join(' ');
+
+  let sources = await retrieveContext(retrievalQuery, 6).catch((err) => {
     console.error('Retrieval failed:', err.message);
     return [];
   });
