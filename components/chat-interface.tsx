@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useChat } from 'ai/react';
 import { useEffect, useRef, useState } from 'react';
 import { PersonaSelector } from './persona-selector';
@@ -89,9 +90,7 @@ export function ChatInterface() {
       <aside className="hidden md:flex w-64 flex-shrink-0 bg-brand-800 flex-col py-6 px-4 overflow-y-auto">
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded bg-brand-gold flex items-center justify-center">
-              <span className="text-xs font-bold text-white">SC</span>
-            </div>
+            <Image src="/sc-logo.png" alt="SmartCart" width={32} height={32} className="rounded-lg" />
             <div>
               <p className="text-white text-sm font-semibold leading-tight">SmartCart</p>
               <p className="text-stone-400 text-[10px] leading-tight">Commerce</p>
@@ -120,9 +119,7 @@ export function ChatInterface() {
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded bg-brand-gold flex items-center justify-center">
-                    <span className="text-xs font-bold text-white">SC</span>
-                  </div>
+                  <Image src="/sc-logo.png" alt="SmartCart" width={28} height={28} className="rounded-md" />
                   <p className="text-white text-sm font-semibold">SmartCart</p>
                 </div>
                 <button
@@ -165,9 +162,7 @@ export function ChatInterface() {
             </button>
             {/* Logo (mobile only) */}
             <div className="md:hidden flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-brand-800 flex items-center justify-center">
-                <span className="text-[9px] font-bold text-brand-gold">SC</span>
-              </div>
+              <Image src="/sc-logo.png" alt="SmartCart" width={26} height={26} className="rounded-md" />
               <span className="text-sm font-semibold text-stone-800">SmartCart</span>
             </div>
             {/* Desktop title */}
@@ -286,8 +281,8 @@ function EmptyState({
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col items-center justify-center h-full min-h-[300px] sm:min-h-[400px] text-center px-2">
-      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-brand-800 border border-brand-gold/30 flex items-center justify-center mb-4 sm:mb-5">
-        <span className="text-lg sm:text-xl text-brand-gold font-bold">SC</span>
+      <div className="mb-4 sm:mb-5">
+        <Image src="/sc-logo.png" alt="SmartCart" width={56} height={56} className="rounded-2xl" />
       </div>
       <h2 className="text-lg sm:text-xl font-semibold text-stone-800 mb-2">
         SmartCart Knowledge Base

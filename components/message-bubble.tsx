@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Message } from 'ai';
@@ -31,9 +32,7 @@ export function MessageBubble({ message, sources, isStreaming }: MessageBubblePr
     <div className="flex justify-start">
       <div className="max-w-[85%]">
         <div className="flex items-center gap-2 mb-1.5 px-1">
-          <div className="w-5 h-5 rounded-full bg-brand-800 border border-brand-gold/30 flex items-center justify-center">
-            <span className="text-[8px] text-brand-gold font-bold">SC</span>
-          </div>
+          <Image src="/sc-logo.png" alt="SmartCart" width={20} height={20} className="rounded-full" />
           <span className="text-xs text-stone-400 font-medium">SmartCart Assistant</span>
         </div>
 
