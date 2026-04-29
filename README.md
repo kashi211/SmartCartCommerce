@@ -2,7 +2,7 @@
 
 An AI-powered RAG chat app built on SmartCartCommerce's internal knowledge base — 86 documents across policies, operations, support playbooks, and the brand admin console.
 
-![SmartCart RAG](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs) ![OpenAI](https://img.shields.io/badge/OpenAI-gpt--4o--mini-412991?logo=openai) ![Pinecone](https://img.shields.io/badge/Pinecone-vector%20DB-00B379) ![Vercel](https://img.shields.io/badge/Vercel-deployed-black?logo=vercel)
+![SmartCart RAG](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs) ![OpenAI](https://img.shields.io/badge/OpenAI-gpt--4o--mini%20%2B%20embeddings-412991?logo=openai) ![Pinecone](https://img.shields.io/badge/Pinecone-vector%20DB-00B379) ![Vercel](https://img.shields.io/badge/Vercel-deployed-black?logo=vercel)
 
 ---
 
@@ -27,7 +27,7 @@ Ask questions in natural language — the assistant retrieves the most relevant 
 | Framework | Next.js 15 (App Router) |
 | Language | TypeScript |
 | LLM | OpenAI `gpt-4o-mini` via Vercel AI SDK |
-| Embeddings | OpenAI `text-embedding-3-small` (1024 dims) |
+| Embeddings | OpenAI `text-embedding-3-small` (1024 dims, native reduction) |
 | Vector DB | Pinecone (serverless, cosine similarity) |
 | Streaming | Vercel AI SDK v4 — `streamText` + `createDataStreamResponse` |
 | Styling | Tailwind CSS |
@@ -76,7 +76,7 @@ cp .env.local.example .env.local
 Fill in `.env.local`:
 
 ```env
-OPENAI_API_KEY=sk-proj-...
+OPENAI_API_KEY=sk-proj-...     # generation + embeddings
 PINECONE_API_KEY=pcsk_...
 PINECONE_INDEX=smartcart-kb
 KB_PATH=../SmartCartCommerce-KnowledgeBase
