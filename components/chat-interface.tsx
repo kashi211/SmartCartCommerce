@@ -4,6 +4,7 @@ import { useChat } from 'ai/react';
 import { useEffect, useRef, useState } from 'react';
 import { PersonaSelector } from './persona-selector';
 import { MessageBubble } from './message-bubble';
+import { cn } from '@/lib/utils';
 import type { Persona, KBSource, SourceDataEvent } from '@/lib/types';
 
 const PERSONA_STARTERS: Record<Persona, string[]> = {
@@ -27,9 +28,22 @@ const PERSONA_STARTERS: Record<Persona, string[]> = {
   ],
 };
 
+const PERSONA_LABELS: Record<Persona, string> = {
+  customer: 'Customer',
+  concierge: 'Concierge',
+  'brand-partner': 'Brand Partner',
+};
+
+const PERSONA_SUBTITLES: Record<Persona, string> = {
+  customer: 'Returns, shipping & policies',
+  concierge: 'Playbooks & escalation',
+  'brand-partner': 'Seller ops & admin',
+};
+
 export function ChatInterface() {
   const [persona, setPersona] = useState<Persona>('customer');
   const [sourcesMap, setSourcesMap] = useState<Record<string, KBSource[]>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, data, setMessages, append } =
@@ -59,6 +73,7 @@ export function ChatInterface() {
     setPersona(p);
     setMessages([]);
     setSourcesMap({});
+    setSidebarOpen(false);
   };
 
   const handleStarter = (text: string) => {
@@ -68,9 +83,10 @@ export function ChatInterface() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex h-screen bg-brand-50 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-brand-800 flex flex-col py-6 px-4 overflow-y-auto">
+    <div className="flex h-[100dvh] bg-brand-50 overflow-hidden">
+
+      {/* ── Desktop sidebar ── */}
+      <aside className="hidden md:flex w-64 flex-shrink-0 bg-brand-800 flex-col py-6 px-4 overflow-y-auto">
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-7 h-7 rounded bg-brand-gold flex items-center justify-center">
@@ -82,47 +98,118 @@ export function ChatInterface() {
             </div>
           </div>
           <p className="text-stone-500 text-[11px] mt-3 leading-snug">
-            AI-powered knowledge base assistant — 87 docs, 5 categories.
+            AI-powered knowledge base assistant — 86 docs, 5 categories.
           </p>
         </div>
-
         <PersonaSelector value={persona} onChange={handlePersonaChange} />
-
         <div className="mt-auto pt-6">
           <p className="text-[10px] text-stone-600 text-center">
-            Powered by Claude + Voyage AI + Pinecone
+            Powered by OpenAI + Pinecone
           </p>
         </div>
       </aside>
 
-      {/* Main chat area */}
+      {/* ── Mobile sidebar drawer overlay ── */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-40 flex">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <aside className="relative z-50 w-72 bg-brand-800 flex flex-col py-6 px-4 overflow-y-auto">
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded bg-brand-gold flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">SC</span>
+                  </div>
+                  <p className="text-white text-sm font-semibold">SmartCart</p>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="text-stone-400 hover:text-white p-1"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-stone-500 text-[11px] leading-snug">
+                AI-powered knowledge base — 86 docs, 5 categories.
+              </p>
+            </div>
+            <PersonaSelector value={persona} onChange={handlePersonaChange} />
+            <div className="mt-auto pt-6">
+              <p className="text-[10px] text-stone-600 text-center">Powered by OpenAI + Pinecone</p>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* ── Main area ── */}
       <main className="flex-1 flex flex-col min-w-0">
+
         {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-stone-200 bg-white/60 backdrop-blur-sm flex-shrink-0">
-          <div>
-            <h1 className="text-base font-semibold text-stone-800">Knowledge Assistant</h1>
-            <p className="text-xs text-stone-400 mt-0.5">
-              {persona === 'customer' && 'Customer support · Returns, shipping, policies'}
-              {persona === 'concierge' && 'Internal · Playbooks, escalation, protocols'}
-              {persona === 'brand-partner' && 'Brand partner · Seller ops, admin console'}
-            </p>
+        <header className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-stone-200 bg-white/60 backdrop-blur-sm flex-shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Mobile menu button */}
+            <button
+              className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg hover:bg-stone-100 text-stone-600 flex-shrink-0"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+                <rect y="2" width="18" height="2" rx="1" />
+                <rect y="8" width="18" height="2" rx="1" />
+                <rect y="14" width="18" height="2" rx="1" />
+              </svg>
+            </button>
+            {/* Logo (mobile only) */}
+            <div className="md:hidden flex items-center gap-2">
+              <div className="w-6 h-6 rounded bg-brand-800 flex items-center justify-center">
+                <span className="text-[9px] font-bold text-brand-gold">SC</span>
+              </div>
+              <span className="text-sm font-semibold text-stone-800">SmartCart</span>
+            </div>
+            {/* Desktop title */}
+            <div className="hidden md:block">
+              <h1 className="text-base font-semibold text-stone-800">Knowledge Assistant</h1>
+              <p className="text-xs text-stone-400 mt-0.5">{PERSONA_SUBTITLES[persona]}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+
+          {/* Mobile: persona pill tabs */}
+          <div className="flex md:hidden items-center gap-1 bg-stone-100 rounded-lg p-1">
+            {(['customer', 'concierge', 'brand-partner'] as Persona[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => handlePersonaChange(p)}
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all',
+                  persona === p
+                    ? 'bg-white text-stone-800 shadow-sm'
+                    : 'text-stone-500'
+                )}
+              >
+                {p === 'brand-partner' ? 'Brand' : PERSONA_LABELS[p]}
+              </button>
+            ))}
+          </div>
+
+          {/* Desktop: status indicator */}
+          <div className="hidden md:flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-400" />
             <span className="text-xs text-stone-400">Ready</span>
           </div>
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
           {isEmpty ? (
             <EmptyState persona={persona} onStarter={handleStarter} />
           ) : (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
               {messages.map((msg, i) => {
-                const isLastAssistant =
-                  msg.role === 'assistant' &&
-                  i === messages.length - 1;
+                const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1;
                 return (
                   <MessageBubble
                     key={msg.id}
@@ -145,15 +232,15 @@ export function ChatInterface() {
         </div>
 
         {/* Input */}
-        <div className="flex-shrink-0 px-6 py-4 border-t border-stone-200 bg-white/80 backdrop-blur-sm">
+        <div className="flex-shrink-0 px-3 sm:px-6 py-3 sm:py-4 border-t border-stone-200 bg-white/80 backdrop-blur-sm">
           <div className="max-w-3xl mx-auto">
-            <form onSubmit={handleSubmit} className="flex items-end gap-3">
+            <form onSubmit={handleSubmit} className="flex items-end gap-2 sm:gap-3">
               <textarea
                 value={input}
                 onChange={(e) => {
                   handleInputChange(e as never);
                   e.target.style.height = 'auto';
-                  e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px';
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -161,27 +248,28 @@ export function ChatInterface() {
                     handleSubmit(e as never);
                   }
                 }}
-                placeholder="Ask anything about SmartCartCommerce…"
+                placeholder="Ask anything…"
                 rows={1}
                 disabled={isLoading}
-                className="flex-1 resize-none rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-800 placeholder-stone-400 outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20 transition-all disabled:opacity-50 leading-relaxed"
-                style={{ minHeight: '48px', maxHeight: '160px' }}
+                className="flex-1 resize-none rounded-xl border border-stone-300 bg-white px-3 sm:px-4 py-3 text-base sm:text-sm text-stone-800 placeholder-stone-400 outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/20 transition-all disabled:opacity-50 leading-relaxed"
+                style={{ minHeight: '48px', maxHeight: '140px', fontSize: '16px' }}
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="flex-shrink-0 w-11 h-11 rounded-xl bg-brand-800 text-white flex items-center justify-center hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex-shrink-0 w-11 h-11 sm:w-11 sm:h-11 rounded-xl bg-brand-800 text-white flex items-center justify-center hover:bg-stone-700 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                   <path d="M1.5 1.5l13 6.5-13 6.5V9.5l9-1.5-9-1.5V1.5z" />
                 </svg>
               </button>
             </form>
-            <p className="text-[11px] text-stone-400 mt-2 text-center">
+            <p className="hidden sm:block text-[11px] text-stone-400 mt-2 text-center">
               Press Enter to send · Shift+Enter for new line
             </p>
           </div>
         </div>
+
       </main>
     </div>
   );
@@ -197,22 +285,24 @@ function EmptyState({
   const starters = PERSONA_STARTERS[persona];
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col items-center justify-center h-full min-h-[400px] text-center">
-      <div className="w-14 h-14 rounded-2xl bg-brand-800 border border-brand-gold/30 flex items-center justify-center mb-5">
-        <span className="text-xl text-brand-gold font-bold">SC</span>
+    <div className="max-w-3xl mx-auto flex flex-col items-center justify-center h-full min-h-[300px] sm:min-h-[400px] text-center px-2">
+      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-brand-800 border border-brand-gold/30 flex items-center justify-center mb-4 sm:mb-5">
+        <span className="text-lg sm:text-xl text-brand-gold font-bold">SC</span>
       </div>
-      <h2 className="text-xl font-semibold text-stone-800 mb-2">SmartCart Knowledge Base</h2>
-      <p className="text-sm text-stone-500 mb-8 max-w-md">
+      <h2 className="text-lg sm:text-xl font-semibold text-stone-800 mb-2">
+        SmartCart Knowledge Base
+      </h2>
+      <p className="text-sm text-stone-500 mb-6 sm:mb-8 max-w-sm sm:max-w-md">
         Ask anything about SmartCartCommerce — policies, operations, products, and platform
-        documentation. Answers are grounded in the internal knowledge base.
+        documentation.
       </p>
 
-      <div className="grid grid-cols-2 gap-2.5 w-full max-w-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 w-full max-w-sm sm:max-w-lg">
         {starters.map((s) => (
           <button
             key={s}
             onClick={() => onStarter(s)}
-            className="text-left px-4 py-3 rounded-xl border border-stone-200 bg-white hover:border-brand-gold/50 hover:bg-brand-50 text-sm text-stone-600 hover:text-stone-800 transition-all shadow-sm"
+            className="text-left px-4 py-3 rounded-xl border border-stone-200 bg-white hover:border-brand-gold/50 hover:bg-brand-50 text-sm text-stone-600 hover:text-stone-800 transition-all shadow-sm active:scale-[0.98]"
           >
             {s}
           </button>
