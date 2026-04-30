@@ -1,5 +1,6 @@
 import { streamText, createDataStreamResponse } from 'ai';
 import { openai } from '@ai-sdk/openai';
+import { traceable } from 'langsmith/traceable';
 import { retrieveContext } from '@/lib/rag/retriever';
 import { buildSystemPrompt } from '@/lib/prompts';
 import type { Persona } from '@/lib/types';
@@ -23,10 +24,17 @@ export async function POST(req: Request) {
     .map((m: { content: string }) => m.content)
     .join(' ');
 
-  let sources = await retrieveContext(retrievalQuery, 6).catch((err) => {
-    console.error('Retrieval failed:', err.message);
-    return [];
-  });
+  // Wrap the retrieval step so LangSmith traces it as the root span of each request
+  const runRetrieval = traceable(
+    () =>
+      retrieveContext(retrievalQuery, 6).catch((err) => {
+        console.error('Retrieval failed:', err.message);
+        return [];
+      }),
+    { name: 'chat/retrieve', run_type: 'chain', metadata: { persona } },
+  );
+
+  const sources = await runRetrieval();
 
   return createDataStreamResponse({
     execute: (dataStream) => {
@@ -38,6 +46,17 @@ export async function POST(req: Request) {
         messages,
         maxTokens: 1024,
         temperature: 0.1,
+        onFinish: ({ usage, finishReason }) => {
+          if (process.env.LANGCHAIN_TRACING_V2 === 'true') {
+            console.log('[LangSmith] llm finish:', {
+              inputTokens: usage.promptTokens,
+              outputTokens: usage.completionTokens,
+              finishReason,
+              persona,
+              sourcesReturned: sources.length,
+            });
+          }
+        },
       });
 
       result.mergeIntoDataStream(dataStream);
