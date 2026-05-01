@@ -47,6 +47,20 @@ export async function upsertVectors(
   }
 }
 
+export async function deleteDocVectors(relPath: string): Promise<number> {
+  const index = getClient().index(INDEX_NAME);
+  const prefix = relPath
+    .replace(/[/\\]/g, '-')
+    .replace(/\.md$/, '')
+    .replace(/[^a-zA-Z0-9-]/g, '')
+    .slice(0, 80);
+
+  const listed = await index.listPaginated({ prefix });
+  const ids = listed.vectors?.map((v) => v.id) ?? [];
+  if (ids.length > 0) await index.deleteMany(ids);
+  return ids.length;
+}
+
 export async function querySimilar(
   queryVector: number[],
   topK = 6

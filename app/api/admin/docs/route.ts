@@ -1,0 +1,61 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import { NextResponse } from 'next/server';
+import { findMarkdownFiles, chunkMarkdownFile } from '@/lib/rag/chunker';
+
+const KB_ROOT = process.env.KB_PATH
+  ? path.resolve(process.cwd(), process.env.KB_PATH)
+  : path.resolve(process.cwd(), '../SmartCartCommerce-KnowledgeBase');
+
+function safePath(relPath: string): string | null {
+  const abs = path.resolve(KB_ROOT, relPath);
+  if (!abs.startsWith(KB_ROOT + path.sep) && abs !== KB_ROOT) return null;
+  return abs;
+}
+
+// GET /api/admin/docs              → list all docs
+// GET /api/admin/docs?path=...     → get one doc's content
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const relPath = searchParams.get('path');
+
+  if (relPath) {
+    const abs = safePath(relPath);
+    if (!abs) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    try {
+      const content = fs.readFileSync(abs, 'utf-8');
+      return NextResponse.json({ content });
+    } catch {
+      return NextResponse.json({ error: 'not found' }, { status: 404 });
+    }
+  }
+
+  const files = findMarkdownFiles(KB_ROOT);
+  const docs = files.map(({ absPath, relPath: rel }) => {
+    const raw = fs.readFileSync(absPath, 'utf-8');
+    const title = raw.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? rel;
+    const category = rel.split('/')[0].replace(/^\d+-/, '').replace(/-/g, ' ');
+    const chunks = chunkMarkdownFile(absPath, rel);
+    return { relPath: rel, title, category, chunkCount: chunks.length, charCount: raw.length };
+  });
+
+  return NextResponse.json({ docs });
+}
+
+// PUT /api/admin/docs  body: { path, content }  → save doc
+export async function PUT(req: Request) {
+  const { path: relPath, content } = await req.json();
+  if (!relPath || typeof content !== 'string') {
+    return NextResponse.json({ error: 'path and content required' }, { status: 400 });
+  }
+
+  const abs = safePath(relPath);
+  if (!abs) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+
+  try {
+    fs.writeFileSync(abs, content, 'utf-8');
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}

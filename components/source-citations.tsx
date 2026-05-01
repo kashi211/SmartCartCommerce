@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { DocViewerModal } from './doc-viewer-modal';
 import type { KBSource } from '@/lib/types';
 
 interface SourceCitationsProps {
@@ -31,64 +32,74 @@ function categoryColor(category: string): string {
 
 export function SourceCitations({ sources }: SourceCitationsProps) {
   const [open, setOpen] = useState(false);
+  const [viewingSource, setViewingSource] = useState<KBSource | null>(null);
 
   if (sources.length === 0) return null;
 
   return (
-    <div className="mt-3 border-t border-stone-100 pt-3">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-600 transition-colors"
-      >
-        <span>{open ? '▾' : '▸'}</span>
-        <span>
-          {sources.length} source{sources.length !== 1 ? 's' : ''} retrieved
-        </span>
-      </button>
+    <>
+      <div className="mt-3 border-t border-stone-100 pt-3">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-600 transition-colors"
+        >
+          <span>{open ? '▾' : '▸'}</span>
+          <span>
+            {sources.length} source{sources.length !== 1 ? 's' : ''} retrieved
+          </span>
+        </button>
 
-      {open && (
-        <div className="mt-2 space-y-2">
-          {sources.map((s, i) => (
-            <div
-              key={s.id}
-              className="rounded-lg border border-stone-200 bg-stone-50 p-3 text-xs"
-            >
-              <div className="flex items-start justify-between gap-2 mb-1.5">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-stone-700">
-                    {s.metadata.docTitle}
-                    {s.metadata.sectionTitle && (
-                      <span className="font-normal text-stone-400">
-                        {' '}/{' '}{s.metadata.sectionTitle}
-                      </span>
-                    )}
-                  </span>
+        {open && (
+          <div className="mt-2 space-y-2">
+            {sources.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setViewingSource(s)}
+                className="w-full text-left rounded-lg border border-stone-200 bg-stone-50 hover:bg-amber-50 hover:border-amber-300 p-3 text-xs transition-colors group"
+              >
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-stone-700 group-hover:text-amber-800">
+                      {s.metadata.docTitle}
+                      {s.metadata.sectionTitle && (
+                        <span className="font-normal text-stone-400">
+                          {' '}/{' '}{s.metadata.sectionTitle}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span
+                      className={cn(
+                        'px-1.5 py-0.5 rounded text-[10px] font-medium',
+                        categoryColor(s.metadata.category),
+                      )}
+                    >
+                      {s.metadata.category}
+                    </span>
+                    <span className="text-stone-400">{scoreLabel(s.score)}</span>
+                    <span className="text-[10px] text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      View →
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <span
-                    className={cn(
-                      'px-1.5 py-0.5 rounded text-[10px] font-medium',
-                      categoryColor(s.metadata.category)
-                    )}
-                  >
-                    {s.metadata.category}
-                  </span>
-                  <span className="text-stone-400">
-                    {scoreLabel(s.score)}
-                  </span>
-                </div>
-              </div>
-              <p className="text-stone-500 leading-relaxed line-clamp-3">
-                {s.content.slice(0, 280).replace(/^.+\n\n/, '')}
-                {s.content.length > 280 ? '…' : ''}
-              </p>
-              <p className="mt-1.5 text-[10px] text-stone-400 font-mono">
-                {s.metadata.filePath}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+                <p className="text-stone-500 leading-relaxed line-clamp-3">
+                  {s.content.slice(0, 280).replace(/^.+\n\n/, '')}
+                  {s.content.length > 280 ? '…' : ''}
+                </p>
+                <p className="mt-1.5 text-[10px] text-stone-400 font-mono">
+                  {s.metadata.filePath}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <DocViewerModal
+        source={viewingSource}
+        onClose={() => setViewingSource(null)}
+      />
+    </>
   );
 }

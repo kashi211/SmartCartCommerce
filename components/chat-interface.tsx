@@ -178,7 +178,11 @@ export function ChatInterface() {
           onNew={startNewChat}
         />
 
-        <div className="flex-shrink-0 pt-4 mt-2 border-t border-stone-700">
+        <div className="flex-shrink-0 pt-4 mt-2 border-t border-stone-700 space-y-2">
+          <div className="flex items-center justify-between">
+            <a href="/architecture" className="text-[10px] text-stone-500 hover:text-stone-300 transition-colors">Architecture ↗</a>
+            <a href="/admin" className="text-[10px] text-stone-500 hover:text-stone-300 transition-colors">KB Admin ↗</a>
+          </div>
           <p className="text-[10px] text-stone-600 text-center">
             Powered by OpenAI + Pinecone
           </p>
