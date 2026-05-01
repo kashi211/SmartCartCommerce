@@ -2,7 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { Chunk } from '../types';
 
-const MAX_CHUNK_CHARS = 3000;
+const MAX_CHUNK_CHARS = 2000;
+const OVERLAP_CHARS = 400;
 
 function extractDocTitle(content: string, filePath: string): string {
   const h1 = content.match(/^#\s+(.+)$/m);
@@ -24,37 +25,59 @@ function makeChunkId(filePath: string, index: number): string {
     .slice(0, 80) + `-${index}`;
 }
 
-function splitLongSection(text: string, maxChars: number): string[] {
+function splitWithOverlap(text: string, maxChars: number, overlapChars: number): string[] {
   if (text.length <= maxChars) return [text];
 
+  // First try splitting on ### sub-sections
   const subSections = text.split(/(?=^### )/m);
   if (subSections.length > 1) {
     const result: string[] = [];
     for (const sub of subSections) {
-      result.push(...splitLongSection(sub, maxChars));
+      result.push(...splitWithOverlap(sub, maxChars, overlapChars));
     }
     return result;
   }
 
-  const paragraphs = text.split(/\n\n+/);
+  // Sliding window with overlap, preferring paragraph breaks
   const chunks: string[] = [];
-  let current = '';
+  let pos = 0;
 
-  for (const para of paragraphs) {
-    if (current.length + para.length + 2 > maxChars && current.length > 0) {
-      chunks.push(current.trim());
-      current = para;
-    } else {
-      current = current ? current + '\n\n' + para : para;
+  while (pos < text.length) {
+    const rawEnd = Math.min(pos + maxChars, text.length);
+    let chunkEnd = rawEnd;
+
+    if (rawEnd < text.length) {
+      // Prefer breaking at a paragraph boundary in the last 30% of the window
+      const searchFloor = pos + Math.floor(maxChars * 0.7);
+      const paraBreak = text.lastIndexOf('\n\n', rawEnd);
+      if (paraBreak >= searchFloor) {
+        chunkEnd = paraBreak;
+      } else {
+        const lineBreak = text.lastIndexOf('\n', rawEnd);
+        if (lineBreak >= searchFloor) chunkEnd = lineBreak;
+      }
     }
+
+    const chunk = text.slice(pos, chunkEnd).trim();
+    if (chunk.length > 60) chunks.push(chunk);
+    if (chunkEnd >= text.length) break;
+    pos = Math.max(pos + 1, chunkEnd - overlapChars);
   }
-  if (current.trim()) chunks.push(current.trim());
+
   return chunks;
+}
+
+function audienceFromPath(relPath: string): string {
+  const dir = relPath.split('/')[0] ?? '';
+  if (dir.startsWith('04-') || dir.startsWith('09-')) return 'brand-partner';
+  if (dir.startsWith('05-')) return 'internal';
+  return 'customer-facing';
 }
 
 export function chunkMarkdownContent(content: string, relPath: string): Chunk[] {
   const docTitle = extractDocTitle(content, relPath);
   const category = categoryFromPath(relPath);
+  const audience = audienceFromPath(relPath);
 
   const sections = content.split(/(?=^## )/m);
   const chunks: Chunk[] = [];
@@ -66,7 +89,7 @@ export function chunkMarkdownContent(content: string, relPath: string): Chunk[] 
     const sectionTitleMatch = trimmed.match(/^## (.+)$/m);
     const sectionTitle = sectionTitleMatch ? sectionTitleMatch[1].trim() : '';
 
-    const subChunks = splitLongSection(trimmed, MAX_CHUNK_CHARS);
+    const subChunks = splitWithOverlap(trimmed, MAX_CHUNK_CHARS, OVERLAP_CHARS);
     for (const text of subChunks) {
       if (text.trim().length < 60) continue;
       const idx = chunks.length;
@@ -80,6 +103,7 @@ export function chunkMarkdownContent(content: string, relPath: string): Chunk[] 
           sectionTitle,
           chunkIndex: idx,
           charCount: text.length,
+          audience,
         },
       });
     }
@@ -96,6 +120,7 @@ export function chunkMarkdownContent(content: string, relPath: string): Chunk[] 
         sectionTitle: '',
         chunkIndex: 0,
         charCount: content.length,
+        audience,
       },
     });
   }

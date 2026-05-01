@@ -1,7 +1,7 @@
 import { traceable } from 'langsmith/traceable';
 
 const OPENAI_EMBED_URL = 'https://api.openai.com/v1/embeddings';
-const OPENAI_EMBED_MODEL = 'text-embedding-3-small';
+const OPENAI_EMBED_MODEL = 'text-embedding-3-large';
 const DIMENSIONS = 1024;
 
 interface OpenAIEmbedResponse {

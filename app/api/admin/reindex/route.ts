@@ -53,6 +53,7 @@ export async function POST(req: Request) {
           docTitle: chunk.metadata.docTitle,
           sectionTitle: chunk.metadata.sectionTitle,
           chunkIndex: chunk.metadata.chunkIndex,
+          audience: chunk.metadata.audience,
         },
       }));
 

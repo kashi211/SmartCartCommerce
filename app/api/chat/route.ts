@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   // Wrap the retrieval step so LangSmith traces it as the root span of each request
   const runRetrieval = traceable(
     () =>
-      retrieveContext(retrievalQuery, 6).catch((err) => {
+      retrieveContext(retrievalQuery, 6, persona as Persona).catch((err) => {
         console.error('Retrieval failed:', err.message);
         return [];
       }),

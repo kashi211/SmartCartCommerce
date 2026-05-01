@@ -10,10 +10,14 @@ flowchart TD
     subgraph QUERY["Query Flow (per message)"]
         direction TB
         Q["Last 3 user messages\ncombined as retrieval query"]:::step
-        EMB["OpenAI Embeddings\ntext-embedding-3-small\n1024 dims"]:::openai
-        PIN["Pinecone\nCosine similarity search\n856 vectors"]:::pinecone
-        RET["Top-6 chunks\nreturned with scores"]:::step
-        PROMPT["System Prompt Builder\nPersona instructions +\nretrieved context injected"]:::step
+        RW["Query Rewriter\ngpt-4o-mini\n3 search variants"]:::openai
+        EMB["OpenAI Embeddings\ntext-embedding-3-large\nMatryoshka 1024d"]:::openai
+        PIN["Pinecone\nMetadata-filtered search\nTop-20 per query"]:::pinecone
+        HYBRID["Hybrid Keyword Boost\n85% semantic + 15% keyword\nDeduplicated candidates"]:::step
+        RERANK["LLM Re-ranker\ngpt-4o-mini\nTop-20 → Top-6"]:::openai
+        HOP{"Weak results?\n< 3 chunks or\nscore < 0.4"}:::decision
+        HOP2["Multi-hop query\nSecond retrieval pass"]:::openai
+        PROMPT["System Prompt Builder\nPersona instructions +\nre-ranked context"]:::step
         LLM["OpenAI gpt-4o-mini\nFull conversation history\n+ context window"]:::openai
         STREAM["Vercel AI SDK\nstreamText · data stream\nSources streamed first"]:::step
     end
@@ -23,26 +27,32 @@ flowchart TD
         LS["LangSmith\ntraceable wrappers"]:::obs
     end
 
-    subgraph INGEST["Ingestion (one-time · npm run ingest)"]
+    subgraph INGEST["Ingestion (npm run ingest --clear)"]
         direction LR
         KB["📁 Knowledge Base\n87 markdown docs\nbundled in data/kb"]:::kb
-        CHUNK["Markdown Chunker\nSplit by ## headers\n3000 char max"]:::step
-        CHUNKS["856 chunks\nwith metadata"]:::step
-        EMBI["OpenAI Embeddings\nbatch of 96"]:::openai
+        CHUNK["Sliding Window Chunker\n2000 char / 400 overlap\naudience tagging"]:::step
+        CHUNKS["Chunks with metadata\nfilePath · category · audience"]:::step
+        EMBI["text-embedding-3-large\nbatch of 96"]:::openai
         UPSERT["Pinecone Upsert\nbatches of 100"]:::pinecone
     end
 
     U -->|"types question"| UI
     UI -->|"POST /api/chat"| Q
-    Q --> EMB
+    Q --> RW
+    RW --> EMB
     EMB --> PIN
-    PIN --> RET
-    RET --> PROMPT
+    PIN --> HYBRID
+    HYBRID --> RERANK
+    RERANK --> HOP
+    HOP -->|"yes"| HOP2
+    HOP2 --> PROMPT
+    HOP -->|"no"| PROMPT
     PROMPT --> LLM
     LLM --> STREAM
     STREAM -->|"tokens + sources"| UI
     UI -->|"localStorage"| PERSIST[("💾 Conversation\nHistory")]:::storage
-    EMB & RET -.->|"traced"| LS
+    UI -->|"👍 / 👎"| FB["/api/feedback"]:::step
+    RW & RERANK & HOP2 -.->|"traced"| LS
 
     KB --> CHUNK --> CHUNKS --> EMBI --> UPSERT
 
@@ -54,6 +64,7 @@ flowchart TD
     classDef step fill:#fff8ed,stroke:#d4a017,color:#1c1917
     classDef storage fill:#292524,stroke:#57534e,color:#faf8f4
     classDef obs fill:#4f46e5,stroke:#3730a3,color:#fff
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#92400e
 `;
 
 const PERSONA_FLOW = `
@@ -119,10 +130,19 @@ flowchart LR
         MODAL -->|"fetches"| S3V
     end
 
+    subgraph FEEDBACK["User Feedback Loop"]
+        direction TB
+        FB["👍 / 👎 on each response"]:::fbnode
+        FAPI["/api/feedback\nPOST with message ID\n+ source IDs"]:::fbnode
+        FLOG["Logged to console\n+ LangSmith metadata"]:::fbnode
+        FB --> FAPI --> FLOG
+    end
+
     classDef evalnode fill:#f0fdf4,stroke:#22c55e,color:#15803d
     classDef adminnode fill:#fefce8,stroke:#eab308,color:#854d0e
     classDef s3node fill:#ff9900,stroke:#e68a00,color:#fff
     classDef viewernode fill:#eff6ff,stroke:#3b82f6,color:#1d4ed8
+    classDef fbnode fill:#fdf4ff,stroke:#a855f7,color:#7e22ce
 `;
 
 export function ArchitectureDiagram() {

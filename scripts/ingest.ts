@@ -5,7 +5,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 import { findMarkdownFiles, chunkMarkdownFile } from '../lib/rag/chunker';
 import { embedTexts } from '../lib/rag/embeddings';
-import { ensureIndex, upsertVectors } from '../lib/rag/vectorstore';
+import { ensureIndex, clearIndex, upsertVectors } from '../lib/rag/vectorstore';
 import type { PineconeMetadata } from '../lib/types';
 
 const KB_PATH = process.env.KB_PATH
@@ -15,6 +15,8 @@ const KB_PATH = process.env.KB_PATH
 const EMBED_BATCH = 96;
 
 async function main() {
+  const shouldClear = process.argv.includes('--clear');
+
   console.log(`\nSmartCart KB Ingestion`);
   console.log(`Knowledge base: ${KB_PATH}`);
 
@@ -23,6 +25,11 @@ async function main() {
 
   console.log('Ensuring Pinecone index exists...');
   await ensureIndex();
+
+  if (shouldClear) {
+    console.log('Clearing existing vectors (--clear flag set)...');
+    await clearIndex();
+  }
 
   let allChunks: ReturnType<typeof chunkMarkdownFile> = [];
   for (const { absPath, relPath } of files) {
@@ -56,6 +63,7 @@ async function main() {
           docTitle: chunk.metadata.docTitle,
           sectionTitle: chunk.metadata.sectionTitle,
           chunkIndex: chunk.metadata.chunkIndex,
+          audience: chunk.metadata.audience,
         },
       });
     }

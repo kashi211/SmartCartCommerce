@@ -27,6 +27,7 @@ export interface Chunk {
     sectionTitle: string;
     chunkIndex: number;
     charCount: number;
+    audience: string;
   };
 }
 
@@ -37,5 +38,6 @@ export interface PineconeMetadata {
   docTitle: string;
   sectionTitle: string;
   chunkIndex: number;
+  audience: string;
   [key: string]: string | number | boolean;
 }

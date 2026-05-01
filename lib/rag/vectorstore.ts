@@ -62,15 +62,23 @@ export async function deleteDocVectors(relPath: string): Promise<number> {
 }
 
 
+export async function clearIndex(): Promise<void> {
+  const index = getClient().index(INDEX_NAME);
+  await index.deleteAll();
+  console.log(`Cleared all vectors from "${INDEX_NAME}".`);
+}
+
 export async function querySimilar(
   queryVector: number[],
-  topK = 6
+  topK = 6,
+  filter?: Record<string, unknown>,
 ): Promise<Array<{ id: string; score: number; metadata: PineconeMetadata }>> {
   const index = getClient().index<PineconeMetadata>(INDEX_NAME);
   const result = await index.query({
     vector: queryVector,
     topK,
     includeMetadata: true,
+    ...(filter ? { filter } : {}),
   });
 
   return (result.matches ?? [])

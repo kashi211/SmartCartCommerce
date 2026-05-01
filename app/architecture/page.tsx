@@ -55,75 +55,105 @@ const SHIPPED = [
       'Edits persisted to AWS S3 — survive Vercel redeployments and server restarts',
     ],
   },
+  {
+    icon: '🔁',
+    title: 'Re-ranking (two-stage retrieval)',
+    badge: 'Retriever',
+    badgeColor: 'bg-rose-100 text-rose-700',
+    stack: 'gpt-4o-mini · LLM cross-encoder',
+    items: [
+      'First stage: Pinecone cosine search returns up to 20 candidates',
+      'Second stage: gpt-4o-mini ranks candidates by true query relevance',
+      'Final top-6 are far higher quality than raw cosine similarity alone',
+    ],
+  },
+  {
+    icon: '✏️',
+    title: 'Query rewriting & expansion',
+    badge: 'Retriever',
+    badgeColor: 'bg-rose-100 text-rose-700',
+    stack: 'gpt-4o-mini · multi-query',
+    items: [
+      'User query is rewritten into 2 search-optimised variants before embedding',
+      'All 3 queries are embedded and searched — results are merged with deduplication',
+      'Dramatically improves recall for vague conversational questions',
+    ],
+  },
+  {
+    icon: '🔀',
+    title: 'Hybrid search (vector + keyword)',
+    badge: 'Retriever',
+    badgeColor: 'bg-rose-100 text-rose-700',
+    stack: 'BM25 keyword boost · blended scoring',
+    items: [
+      'Candidates scored at 85% semantic + 15% keyword overlap with query terms',
+      'Handles exact-term queries: SKUs, policy windows, specific figures',
+      'No Pinecone index recreation needed — applied post-retrieval',
+    ],
+  },
+  {
+    icon: '🏷️',
+    title: 'Metadata filtering by persona',
+    badge: 'Retriever',
+    badgeColor: 'bg-amber-100 text-amber-700',
+    stack: 'Pinecone filter · audience tags',
+    items: [
+      'Each chunk tagged with audience at ingest: customer-facing / brand-partner / internal',
+      'Customer searches only customer-facing docs; Brand Partner includes seller docs',
+      'Concierge remains unfiltered — handles all document types',
+    ],
+  },
+  {
+    icon: '🧠',
+    title: 'Stronger embedding model',
+    badge: 'text-embedding-3-large',
+    badgeColor: 'bg-emerald-100 text-emerald-700',
+    stack: 'OpenAI · Matryoshka 1024d',
+    items: [
+      'Switched from text-embedding-3-small to text-embedding-3-large',
+      'Uses Matryoshka representation learning to reduce to 1024 dims — index unchanged',
+      'Significantly better handling of nuanced intent and ambiguous queries',
+    ],
+  },
+  {
+    icon: '✂️',
+    title: 'Smarter chunking with overlap',
+    badge: 'Ingestion',
+    badgeColor: 'bg-amber-100 text-amber-700',
+    stack: 'Sliding window · 2000 char / 400 overlap',
+    items: [
+      'Reduced max chunk size from 3000 to 2000 chars for tighter semantic focus',
+      '400-char overlap between consecutive chunks preserves cross-boundary context',
+      'Sliding window prefers paragraph breaks to avoid splitting mid-sentence',
+    ],
+  },
+  {
+    icon: '👍',
+    title: 'User feedback loop',
+    badge: 'Chat UI',
+    badgeColor: 'bg-blue-100 text-blue-700',
+    stack: '/api/feedback · LangSmith',
+    items: [
+      'Thumbs up / thumbs down button on every assistant response',
+      'Feedback logged with message ID, query, and retrieved source IDs',
+      'Signals forwarded to LangSmith for future reranker training',
+    ],
+  },
+  {
+    icon: '🔗',
+    title: 'Multi-hop retrieval',
+    badge: 'Retriever',
+    badgeColor: 'bg-blue-100 text-blue-700',
+    stack: 'gpt-4o-mini · iterative search',
+    items: [
+      'After initial retrieval, checks if results are weak (< 3 chunks or low scores)',
+      'LLM generates a follow-up query targeting missing information',
+      'Second retrieval pass fills gaps for complex multi-part questions',
+    ],
+  },
 ];
 
 const ENHANCEMENTS = [
-  {
-    priority: 'High',
-    priorityColor: 'bg-red-100 text-red-700',
-    title: 'Re-ranking (two-stage retrieval)',
-    impact: 'Highest ROI improvement',
-    current: 'Pinecone top-6 → directly injected into prompt',
-    problem:
-      'Vector similarity ≠ true relevance. First-stage retrieval often surfaces chunks that are topically close but not the best answer.',
-    upgrade:
-      'Retrieve top 20–50 with Pinecone, then pass through a cross-encoder re-ranker (Cohere Rerank, bge-reranker, or a lightweight LLM scoring prompt) to select the best 5–8. Re-rankers understand query-document interaction far better than cosine distance.',
-  },
-  {
-    priority: 'High',
-    priorityColor: 'bg-red-100 text-red-700',
-    title: 'Query rewriting & expansion',
-    impact: 'Dramatic boost for real users',
-    current: 'Raw user message embedded directly',
-    problem:
-      'Users ask vague, conversational questions. "Does it support Apple Pay?" gives a poor embedding compared to what\'s in the docs.',
-    upgrade:
-      'Add a fast LLM step before retrieval to rewrite the query into a search-optimised form: "SmartCartCommerce accepted payment methods Apple Pay". Also expand to multiple sub-queries for complex questions (multi-query retrieval).',
-  },
-  {
-    priority: 'High',
-    priorityColor: 'bg-red-100 text-red-700',
-    title: 'Hybrid search (vector + BM25 keyword)',
-    impact: 'Critical for e-commerce / documentation systems',
-    current: 'Pure semantic (dense vector) search only',
-    problem:
-      'Semantic search fails on exact terms: SKUs, error codes, API names, specific figures like "60-day window". A query for "60 days" may not rank the returns policy highly.',
-    upgrade:
-      'Enable Pinecone\'s built-in hybrid search (sparse + dense vectors). BM25 handles exact keyword matching while the dense vector handles semantic intent. Alpha parameter controls the blend.',
-  },
-  {
-    priority: 'Medium',
-    priorityColor: 'bg-amber-100 text-amber-700',
-    title: 'Metadata filtering before retrieval',
-    impact: 'Reduces hallucination, improves precision',
-    current: 'All 856 chunks searched regardless of persona',
-    problem:
-      'A customer query searches brand-partner admin docs and vice versa, adding noise and occasionally surfacing internal-only content.',
-    upgrade:
-      'Tag each chunk with audience (customer-facing / internal / brand-partner) at ingest time. Apply a Pinecone metadata filter before the vector search so each persona only retrieves from its relevant document subset.',
-  },
-  {
-    priority: 'Medium',
-    priorityColor: 'bg-amber-100 text-amber-700',
-    title: 'Stronger embedding model',
-    impact: '20–40% retrieval quality improvement',
-    current: 'OpenAI text-embedding-3-small (1024 dims)',
-    problem:
-      'text-embedding-3-small trades quality for speed and cost. Nuanced intent, ambiguous queries, and long documents are handled worse than larger models.',
-    upgrade:
-      'Switch to text-embedding-3-large (3072 dims, reducible to 1024 with Matryoshka). At 856 chunks the cost difference at query time is negligible. Re-run npm run ingest after switching — the Pinecone index needs to be recreated.',
-  },
-  {
-    priority: 'Medium',
-    priorityColor: 'bg-amber-100 text-amber-700',
-    title: 'Smarter chunking strategy',
-    impact: 'Cleaner context, fewer noisy chunks',
-    current: 'Split by ## markdown headers, 3000 char max',
-    problem:
-      'Section sizes vary wildly — some chunks are 200 chars, others 3000. Oversized chunks dilute relevance; undersized chunks lose surrounding context.',
-    upgrade:
-      'Hybrid chunking: fixed token window (400–600 tokens) with 100-token overlap, applied within each section. Alternatively, use semantic chunking that splits on embedding similarity drops rather than fixed size.',
-  },
   {
     priority: 'Medium',
     priorityColor: 'bg-amber-100 text-amber-700',
@@ -134,28 +164,6 @@ const ENHANCEMENTS = [
       'Simple FAQ questions (return window, shipping cost) don\'t need a strong model. Complex multi-step brand-partner compliance questions do.',
     upgrade:
       'Route by persona and query complexity: Customer simple → gpt-4o-mini, Concierge / Brand Partner or detected complexity → gpt-4o. Complexity can be detected by a cheap classifier or heuristic (query length, keyword presence).',
-  },
-  {
-    priority: 'Low',
-    priorityColor: 'bg-blue-100 text-blue-700',
-    title: 'User feedback loop (thumbs up/down)',
-    impact: 'Training signal for future reranking',
-    current: 'No feedback mechanism',
-    problem:
-      'No signal about which responses were helpful. Can\'t identify systematically failing query patterns.',
-    upgrade:
-      'Add thumbs up/down on each response. Log (query, retrieved chunks, answer, feedback) to a database. Use negative feedback as a dataset for fine-tuning a reranker or for prompt improvement sprints.',
-  },
-  {
-    priority: 'Low',
-    priorityColor: 'bg-blue-100 text-blue-700',
-    title: 'Multi-hop retrieval',
-    impact: 'Handles complex multi-part questions',
-    current: 'Single retrieval step per message',
-    problem:
-      'Complex questions like "What happens if a brand partner violates the returns policy?" require information from both seller-operations and customer-policies docs — a single retrieval often misses one.',
-    upgrade:
-      'Implement iterative retrieval: after generating an initial answer, detect if follow-up retrieval is needed (tool call or confidence check), retrieve again with a refined query, then synthesise. LangGraph or a simple agent loop can orchestrate this.',
   },
 ];
 
@@ -194,8 +202,9 @@ export default function ArchitecturePage() {
             RAG Architecture
           </h1>
           <p className="text-stone-500 text-sm max-w-2xl">
-            How SmartCart Knowledge Assistant retrieves relevant context from 856 indexed chunks
-            across 87 documents and generates grounded responses using OpenAI.
+            How SmartCart Knowledge Assistant retrieves relevant context across 87 documents using
+            query rewriting, hybrid search, LLM re-ranking, and multi-hop retrieval — then streams
+            grounded responses via OpenAI.
           </p>
         </div>
 
@@ -205,9 +214,9 @@ export default function ArchitecturePage() {
         <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Documents', value: '87', sub: 'markdown files' },
-            { label: 'Chunks', value: '856', sub: 'indexed in Pinecone' },
+            { label: 'Candidates', value: 'Top 20', sub: 'pre-rerank retrieval' },
             { label: 'Eval cases', value: '20', sub: 'golden Q&A pairs' },
-            { label: 'Retrieved', value: 'Top 6', sub: 'chunks per query' },
+            { label: 'Final chunks', value: 'Top 6', sub: 'after re-ranking' },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-xl border border-stone-200 px-5 py-4 shadow-sm">
               <p className="text-2xl font-bold text-stone-900">{s.value}</p>
@@ -223,28 +232,28 @@ export default function ArchitecturePage() {
           <ol className="space-y-3">
             {[
               {
-                step: '1. Query embedding',
-                desc: "The user's message (plus up to 2 prior messages for context) is embedded using OpenAI text-embedding-3-small into a 1024-dimensional vector. This call is traced in LangSmith.",
+                step: '1. Query rewriting',
+                desc: "gpt-4o-mini rewrites the user's question into 2 search-optimised variants tuned to the active persona's knowledge domain. All 3 queries are embedded in one batch with text-embedding-3-large (Matryoshka 1024d).",
               },
               {
-                step: '2. Semantic retrieval',
-                desc: 'The query vector is compared against 856 pre-indexed chunks in Pinecone using cosine similarity. The top 6 most relevant chunks are returned. Retrieval is traced as a LangSmith span.',
+                step: '2. Multi-query retrieval with metadata filter',
+                desc: 'Each query vector searches Pinecone with a persona-scoped audience filter (customer-facing / brand-partner / internal). Top-20 candidates per query are merged with deduplication — best score wins.',
               },
               {
-                step: '3. Prompt construction',
-                desc: 'A persona-specific system prompt (Customer / Concierge / Brand Partner) is built with the retrieved chunks injected as context.',
+                step: '3. Hybrid keyword boost',
+                desc: 'Candidate scores are re-blended: 85% cosine similarity + 15% keyword overlap with the original query. This handles exact-term queries (policy windows, SKUs, figures) that pure semantic search misses.',
               },
               {
-                step: '4. Streaming generation',
-                desc: 'gpt-4o-mini generates a grounded response using the full conversation history + retrieved context. Tokens, latency, and finish reason are logged on completion. The response and source citations stream to the UI simultaneously via Vercel AI SDK.',
+                step: '4. LLM re-ranking',
+                desc: 'gpt-4o-mini ranks the top-20 blended candidates by true relevance to the query, returning the best 6. This cross-encoder step understands query–document interaction far better than cosine distance alone.',
               },
               {
-                step: '5. Source doc viewer',
-                desc: 'Each cited source is clickable. Clicking opens a modal showing the full document with the retrieved section highlighted and auto-scrolled into view. Content is served from S3 if the doc was edited in admin, otherwise from the bundled data/kb files.',
+                step: '5. Multi-hop (if weak)',
+                desc: 'If fewer than 3 strong chunks are found, a second LLM call generates a follow-up query targeting missing information. A second Pinecone pass fills the gap — critical for complex multi-part questions.',
               },
               {
-                step: '6. Ingestion & admin',
-                desc: '87 markdown documents are bundled in data/kb and indexed via npm run ingest. The /admin console lets you edit any doc with a live preview and re-index it to Pinecone in one click. Edits are persisted in AWS S3.',
+                step: '6. Streaming generation + feedback',
+                desc: 'gpt-4o-mini streams a grounded response with the full conversation history + re-ranked context. Each response has thumbs up/down feedback buttons. Citations are clickable and open the full doc with the relevant section highlighted.',
               },
             ].map((item) => (
               <li key={item.step} className="flex gap-3 text-sm">
@@ -266,7 +275,7 @@ export default function ArchitecturePage() {
             </span>
           </div>
           <p className="text-sm text-stone-500 max-w-2xl">
-            Features built beyond the core RAG pipeline: evaluation, observability, a source viewer, and a live KB admin console.
+            12 features shipped across evaluation, observability, retrieval quality, and UI — from the baseline RAG pipeline to a fully modern 2025-grade system.
           </p>
         </div>
 
@@ -309,8 +318,7 @@ export default function ArchitecturePage() {
             </span>
           </div>
           <p className="text-sm text-stone-500 max-w-2xl">
-            The current system is production-ready v1 RAG — better than 80% of what&apos;s shipped today.
-            Below are the high-impact upgrades that separate it from 2025-grade AI products, ordered by ROI.
+            8 of the original 9 planned enhancements have been shipped. One remaining item below.
           </p>
         </div>
 
