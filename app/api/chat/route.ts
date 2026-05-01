@@ -17,12 +17,11 @@ export async function POST(req: Request) {
     return new Response('No user message found', { status: 400 });
   }
 
-  // Build retrieval query from last 3 user messages so follow-up questions
-  // like "what about Canada?" have enough context to retrieve relevant chunks
-  const retrievalQuery = userMessages
-    .slice(-3)
-    .map((m: { content: string }) => m.content)
-    .join(' ');
+  // Use only the latest user message for retrieval — joining prior messages
+  // causes the first question's topic to dominate all subsequent retrievals.
+  // The query rewriter handles rephrasing; the LLM has full conversation
+  // history in its context window to handle follow-up questions correctly.
+  const retrievalQuery = lastUserMessage;
 
   // Wrap the retrieval step so LangSmith traces it as the root span of each request
   const runRetrieval = traceable(
