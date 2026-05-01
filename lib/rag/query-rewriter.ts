@@ -18,13 +18,7 @@ export function extractKeywords(query: string): string[] {
 }
 
 export const rewriteQuery = traceable(
-  async function rewriteQuery(query: string, persona: Persona): Promise<string[]> {
-    const personaContext: Record<Persona, string> = {
-      customer: 'e-commerce customer support — returns, shipping, orders, loyalty, product policies',
-      concierge: 'VIP customer concierge — escalations, refunds, white-glove service, support playbooks',
-      'brand-partner': 'marketplace seller / brand partner — commissions, onboarding, admin console, seller operations',
-    };
-
+  async function rewriteQuery(query: string, _persona: Persona): Promise<string[]> {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -34,14 +28,13 @@ export const rewriteQuery = traceable(
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         temperature: 0,
-        max_tokens: 150,
+        max_tokens: 100,
         messages: [
           {
             role: 'system',
-            content: `You are a search query optimizer for a ${personaContext[persona]} knowledge base.
-Given a user question, output 2 search-optimized reformulations on separate lines.
-Focus on key terminology likely in documentation. Be concise.
-Output ONLY the queries, one per line, no numbering or bullets.`,
+            content: `Rephrase the user's question as 1 concise, keyword-focused search query suitable for a documentation database.
+Preserve the exact topic and intent — do NOT introduce topics not present in the original question.
+Output ONLY the rephrased query, nothing else.`,
           },
           { role: 'user', content: query },
         ],
@@ -51,14 +44,11 @@ Output ONLY the queries, one per line, no numbering or bullets.`,
     if (!response.ok) return [query];
 
     const data = await response.json();
-    const text: string = data.choices[0].message.content ?? '';
-    const rewrites = text
-      .split('\n')
-      .map((q: string) => q.trim())
-      .filter(Boolean)
-      .slice(0, 2);
+    const rewrite: string = (data.choices[0].message.content ?? '').trim();
 
-    return [query, ...rewrites];
+    // Only use the rewrite if it's meaningfully different from the original
+    if (!rewrite || rewrite.toLowerCase() === query.toLowerCase()) return [query];
+    return [query, rewrite];
   },
   { name: 'query/rewrite', run_type: 'chain' },
 );
