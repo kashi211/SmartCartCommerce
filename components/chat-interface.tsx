@@ -14,7 +14,7 @@ import {
   conversationTitle,
 } from '@/lib/storage';
 import type { Conversation } from '@/lib/storage';
-import type { Persona, KBSource, SourceDataEvent } from '@/lib/types';
+import type { Persona, KBSource } from '@/lib/types';
 
 const PERSONA_STARTERS: Record<Persona, string[]> = {
   customer: [
@@ -51,14 +51,13 @@ const PERSONA_SUBTITLES: Record<Persona, string> = {
 
 export function ChatInterface() {
   const [persona, setPersona] = useState<Persona>('customer');
-  const [sourcesMap, setSourcesMap] = useState<Record<string, KBSource[]>>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string>(() => generateId());
   const bottomRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, data, setMessages, append } =
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages, append } =
     useChat({
       api: '/api/chat',
       body: { persona },
@@ -87,27 +86,12 @@ export function ChatInterface() {
     }, 500);
   }, [messages]);
 
-  // Extract sources from data stream and map to message IDs
-  useEffect(() => {
-    if (!data || data.length === 0) return;
-    const sourceEvents = (data as unknown as SourceDataEvent[]).filter((d) => d?.type === 'sources');
-    const assistantMessages = messages.filter((m) => m.role === 'assistant');
-    const newMap: Record<string, KBSource[]> = {};
-    sourceEvents.forEach((event, i) => {
-      if (assistantMessages[i]) {
-        newMap[assistantMessages[i].id] = event.sources;
-      }
-    });
-    setSourcesMap(newMap);
-  }, [data, messages]);
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
   const startNewChat = useCallback(() => {
     setMessages([]);
-    setSourcesMap({});
     setActiveConvId(generateId());
     setSidebarOpen(false);
   }, [setMessages]);
@@ -117,7 +101,6 @@ export function ChatInterface() {
       setActiveConvId(conv.id);
       setPersona(conv.persona);
       setMessages(conv.messages);
-      setSourcesMap({});
       setSidebarOpen(false);
     },
     [setMessages]
@@ -134,7 +117,6 @@ export function ChatInterface() {
   const handlePersonaChange = (p: Persona) => {
     setPersona(p);
     setMessages([]);
-    setSourcesMap({});
     setActiveConvId(generateId());
     setSidebarOpen(false);
   };
@@ -294,11 +276,13 @@ export function ChatInterface() {
             <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
               {messages.map((msg, i) => {
                 const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1;
+                const msgSources = (msg.annotations as Array<{ sources?: KBSource[] }> | undefined)
+                  ?.find((a) => a.sources !== undefined)?.sources;
                 return (
                   <MessageBubble
                     key={msg.id}
                     message={msg}
-                    sources={sourcesMap[msg.id]}
+                    sources={msgSources}
                     isStreaming={isLastAssistant && isLoading}
                   />
                 );

@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
   return createDataStreamResponse({
     execute: (dataStream) => {
-      dataStream.writeData({ type: 'sources', sources } as never);
+      dataStream.writeMessageAnnotation({ sources: sources as never });
 
       const result = streamText({
         model: openai('gpt-4o-mini'),
