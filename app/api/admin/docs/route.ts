@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { NextResponse } from 'next/server';
 import { findMarkdownFiles, chunkMarkdownFile } from '@/lib/rag/chunker';
+import { loadDocContent } from '@/lib/rag/vectorstore';
 
 const KB_ROOT = process.env.KB_PATH
   ? path.resolve(process.cwd(), process.env.KB_PATH)
@@ -22,9 +23,16 @@ export async function GET(req: Request) {
   if (relPath) {
     const abs = safePath(relPath);
     if (!abs) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+
+    // Check Pinecone first for any admin-saved version, fall back to bundled file
+    try {
+      const stored = await loadDocContent(relPath);
+      if (stored) return NextResponse.json({ content: stored, source: 'pinecone' });
+    } catch { /* Pinecone unavailable — fall through to file */ }
+
     try {
       const content = fs.readFileSync(abs, 'utf-8');
-      return NextResponse.json({ content });
+      return NextResponse.json({ content, source: 'file' });
     } catch {
       return NextResponse.json({ error: 'not found' }, { status: 404 });
     }
@@ -47,24 +55,6 @@ export async function GET(req: Request) {
       return { relPath: rel, title, category, chunkCount: chunks.length, charCount: raw.length };
     });
     return NextResponse.json({ docs });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
-  }
-}
-
-// PUT /api/admin/docs  body: { path, content }  → save doc
-export async function PUT(req: Request) {
-  const { path: relPath, content } = await req.json();
-  if (!relPath || typeof content !== 'string') {
-    return NextResponse.json({ error: 'path and content required' }, { status: 400 });
-  }
-
-  const abs = safePath(relPath);
-  if (!abs) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-
-  try {
-    fs.writeFileSync(abs, content, 'utf-8');
-    return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

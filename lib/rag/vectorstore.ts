@@ -61,6 +61,29 @@ export async function deleteDocVectors(relPath: string): Promise<number> {
   return ids.length;
 }
 
+function docContentId(relPath: string): string {
+  return '__doc__' + relPath.replace(/[/\\]/g, '-').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 80);
+}
+
+// Store the full markdown content of a doc as a zero-vector in Pinecone.
+// This gives us a persistent, Vercel-compatible store for admin edits.
+export async function saveDocContent(relPath: string, content: string): Promise<void> {
+  const index = getClient().index(INDEX_NAME);
+  await index.upsert([{
+    id: docContentId(relPath),
+    values: new Array(EMBEDDING_DIMENSION).fill(0) as number[],
+    metadata: { __type: 'doc_content', filePath: relPath, fullContent: content } as unknown as PineconeMetadata,
+  }]);
+}
+
+// Retrieve the stored content for a doc (returns null if not yet saved via admin).
+export async function loadDocContent(relPath: string): Promise<string | null> {
+  const index = getClient().index(INDEX_NAME);
+  const result = await index.fetch([docContentId(relPath)]);
+  const record = result.records?.[docContentId(relPath)];
+  return (record?.metadata as Record<string, unknown> | undefined)?.fullContent as string ?? null;
+}
+
 export async function querySimilar(
   queryVector: number[],
   topK = 6

@@ -3,7 +3,7 @@ import * as path from 'path';
 import { NextResponse } from 'next/server';
 import { chunkMarkdownContent } from '@/lib/rag/chunker';
 import { embedTexts } from '@/lib/rag/embeddings';
-import { deleteDocVectors, upsertVectors } from '@/lib/rag/vectorstore';
+import { deleteDocVectors, upsertVectors, saveDocContent } from '@/lib/rag/vectorstore';
 import type { PineconeMetadata } from '@/lib/types';
 
 const KB_ROOT = process.env.KB_PATH
@@ -53,6 +53,9 @@ export async function POST(req: Request) {
       }));
 
     await upsertVectors(vectors);
+
+    // Persist the edited content in Pinecone so it survives across Vercel deployments
+    await saveDocContent(relPath, content);
 
     return NextResponse.json({ ok: true, deleted, indexed: vectors.length, fileSaved: fs.existsSync(absPath) });
   } catch (err) {
