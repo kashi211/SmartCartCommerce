@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { NextResponse } from 'next/server';
 import { findMarkdownFiles, chunkMarkdownFile } from '@/lib/rag/chunker';
-import { loadDocContent } from '@/lib/rag/vectorstore';
+import { loadFromS3 } from '@/lib/storage/s3';
 
 const KB_ROOT = process.env.KB_PATH
   ? path.resolve(process.cwd(), process.env.KB_PATH)
@@ -24,11 +24,11 @@ export async function GET(req: Request) {
     const abs = safePath(relPath);
     if (!abs) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
-    // Check Pinecone first for any admin-saved version, fall back to bundled file
+    // Check S3 first for any admin-saved version, fall back to bundled file
     try {
-      const stored = await loadDocContent(relPath);
-      if (stored) return NextResponse.json({ content: stored, source: 'pinecone' });
-    } catch { /* Pinecone unavailable — fall through to file */ }
+      const stored = await loadFromS3(relPath);
+      if (stored) return NextResponse.json({ content: stored, source: 's3' });
+    } catch { /* S3 unavailable — fall through to file */ }
 
     try {
       const content = fs.readFileSync(abs, 'utf-8');
