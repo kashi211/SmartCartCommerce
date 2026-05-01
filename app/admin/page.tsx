@@ -242,13 +242,18 @@ function EditorPanel({ doc, onClose, onSaved }: EditorPanelProps) {
 export default function AdminPage() {
   const [docs, setDocs] = useState<DocMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [editingDoc, setEditingDoc] = useState<DocMeta | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/docs')
       .then((r) => r.json())
-      .then((data) => setDocs(data.docs ?? []))
+      .then((data) => {
+        if (data.error) { setFetchError(data.error); return; }
+        setDocs(data.docs ?? []);
+      })
+      .catch((e) => setFetchError(String(e)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -320,6 +325,22 @@ export default function AdminPage() {
             require local dev or a writable server deployment.
           </span>
         </div>
+
+        {/* KB not found error */}
+        {fetchError && (
+          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-4 mb-6">
+            <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-700 mb-1">Knowledge base not accessible</p>
+              <p className="text-xs text-red-600">{fetchError}</p>
+              <p className="text-xs text-red-500 mt-2">
+                This console requires the KB files on the local filesystem. It works in{' '}
+                <code className="bg-red-100 px-1 rounded">npm run dev</code> but not on
+                Vercel (read-only serverless).
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Loading skeleton */}
         {loading && (

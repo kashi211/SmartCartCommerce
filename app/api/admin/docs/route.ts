@@ -30,16 +30,26 @@ export async function GET(req: Request) {
     }
   }
 
-  const files = findMarkdownFiles(KB_ROOT);
-  const docs = files.map(({ absPath, relPath: rel }) => {
-    const raw = fs.readFileSync(absPath, 'utf-8');
-    const title = raw.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? rel;
-    const category = rel.split('/')[0].replace(/^\d+-/, '').replace(/-/g, ' ');
-    const chunks = chunkMarkdownFile(absPath, rel);
-    return { relPath: rel, title, category, chunkCount: chunks.length, charCount: raw.length };
-  });
+  if (!fs.existsSync(KB_ROOT)) {
+    return NextResponse.json(
+      { error: `Knowledge base directory not found at: ${KB_ROOT}. Set KB_PATH in .env.local and restart the server.` },
+      { status: 503 },
+    );
+  }
 
-  return NextResponse.json({ docs });
+  try {
+    const files = findMarkdownFiles(KB_ROOT);
+    const docs = files.map(({ absPath, relPath: rel }) => {
+      const raw = fs.readFileSync(absPath, 'utf-8');
+      const title = raw.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? rel;
+      const category = rel.split('/')[0].replace(/^\d+-/, '').replace(/-/g, ' ');
+      const chunks = chunkMarkdownFile(absPath, rel);
+      return { relPath: rel, title, category, chunkCount: chunks.length, charCount: raw.length };
+    });
+    return NextResponse.json({ docs });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
 }
 
 // PUT /api/admin/docs  body: { path, content }  → save doc
