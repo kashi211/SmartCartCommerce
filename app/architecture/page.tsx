@@ -5,6 +5,58 @@ export const metadata: Metadata = {
   title: 'RAG Architecture — SmartCart Knowledge Assistant',
 };
 
+const SHIPPED = [
+  {
+    icon: '⚗️',
+    title: 'Braintrust Eval',
+    badge: 'npm run eval',
+    badgeColor: 'bg-green-100 text-green-700',
+    stack: 'Braintrust · autoevals',
+    items: [
+      '20-case golden dataset spanning Customer, Concierge, and Brand Partner personas',
+      'Three LLM-as-judge scorers: AnswerRelevancy, Faithfulness, ContextRecall',
+      'Results tracked as named experiments in the Braintrust dashboard',
+    ],
+  },
+  {
+    icon: '🔭',
+    title: 'LangSmith Observability',
+    badge: 'Production tracing',
+    badgeColor: 'bg-indigo-100 text-indigo-700',
+    stack: 'LangSmith · traceable',
+    items: [
+      'Every chat request creates a root span tracing embedding → retrieval → LLM generation',
+      'Token usage, latency, finish reason, persona, and source count logged per request',
+      'Visible in LangSmith dashboard under the smartcart-rag project',
+    ],
+  },
+  {
+    icon: '📄',
+    title: 'Source Doc Viewer',
+    badge: 'In chat UI',
+    badgeColor: 'bg-amber-100 text-amber-700',
+    stack: 'react-markdown · S3',
+    items: [
+      'Click any cited source to open the full document in a modal overlay',
+      'Retrieved section highlighted with amber border and auto-scrolled into view',
+      'Always shows the latest version — S3 edit takes precedence over bundled file',
+    ],
+  },
+  {
+    icon: '🛠️',
+    title: 'Admin KB Console',
+    badge: '/admin',
+    badgeColor: 'bg-purple-100 text-purple-700',
+    stack: 'AWS S3 · Pinecone · Next.js',
+    items: [
+      '87 docs browseable by category with chunk count and character count',
+      'Inline markdown editor with source and live preview tabs',
+      'Save & Re-index: re-chunks and re-embeds the doc to Pinecone in one click',
+      'Edits persisted to AWS S3 — survive Vercel redeployments and server restarts',
+    ],
+  },
+];
+
 const ENHANCEMENTS = [
   {
     priority: 'High',
@@ -86,17 +138,6 @@ const ENHANCEMENTS = [
   {
     priority: 'Low',
     priorityColor: 'bg-blue-100 text-blue-700',
-    title: 'Retrieval evaluation loop',
-    impact: 'Required before scaling to real users',
-    current: 'No metrics on retrieval accuracy or answer quality',
-    problem:
-      'Without measurement you can\'t know if an embedding model change helps or hurts, or which query types are failing silently.',
-    upgrade:
-      'Build a golden eval set: 50–100 (question, expected source document) pairs. Track Recall@k (did the right chunk appear in top-k?), answer faithfulness (does the answer contradict the sources?), and hallucination rate. Run on every ingest change.',
-  },
-  {
-    priority: 'Low',
-    priorityColor: 'bg-blue-100 text-blue-700',
     title: 'User feedback loop (thumbs up/down)',
     impact: 'Training signal for future reranking',
     current: 'No feedback mechanism',
@@ -118,8 +159,6 @@ const ENHANCEMENTS = [
   },
 ];
 
-const PRIORITY_ORDER = { High: 0, Medium: 1, Low: 2 };
-
 export default function ArchitecturePage() {
   return (
     <div className="min-h-screen bg-brand-50">
@@ -134,12 +173,17 @@ export default function ArchitecturePage() {
               <p className="text-[10px] text-stone-400 leading-tight">Knowledge Assistant</p>
             </div>
           </div>
-          <a
-            href="/chat"
-            className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1.5 transition-colors"
-          >
-            ← Back to chat
-          </a>
+          <div className="flex items-center gap-4">
+            <a href="/admin" className="text-xs text-stone-500 hover:text-stone-800 transition-colors">
+              KB Admin
+            </a>
+            <a
+              href="/chat"
+              className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1.5 transition-colors"
+            >
+              ← Back to chat
+            </a>
+          </div>
         </div>
       </header>
 
@@ -151,7 +195,7 @@ export default function ArchitecturePage() {
           </h1>
           <p className="text-stone-500 text-sm max-w-2xl">
             How SmartCart Knowledge Assistant retrieves relevant context from 856 indexed chunks
-            across 86 documents and generates grounded responses using OpenAI.
+            across 87 documents and generates grounded responses using OpenAI.
           </p>
         </div>
 
@@ -160,9 +204,9 @@ export default function ArchitecturePage() {
         {/* Stats */}
         <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Documents', value: '86', sub: 'markdown files' },
+            { label: 'Documents', value: '87', sub: 'markdown files' },
             { label: 'Chunks', value: '856', sub: 'indexed in Pinecone' },
-            { label: 'Embeddings', value: '1024', sub: 'dimensions' },
+            { label: 'Eval cases', value: '20', sub: 'golden Q&A pairs' },
             { label: 'Retrieved', value: 'Top 6', sub: 'chunks per query' },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-xl border border-stone-200 px-5 py-4 shadow-sm">
@@ -180,11 +224,11 @@ export default function ArchitecturePage() {
             {[
               {
                 step: '1. Query embedding',
-                desc: "The user's message (plus up to 2 prior messages for context) is embedded using OpenAI text-embedding-3-small into a 1024-dimensional vector.",
+                desc: "The user's message (plus up to 2 prior messages for context) is embedded using OpenAI text-embedding-3-small into a 1024-dimensional vector. This call is traced in LangSmith.",
               },
               {
                 step: '2. Semantic retrieval',
-                desc: 'The query vector is compared against 856 pre-indexed chunks in Pinecone using cosine similarity. The top 6 most relevant chunks are returned.',
+                desc: 'The query vector is compared against 856 pre-indexed chunks in Pinecone using cosine similarity. The top 6 most relevant chunks are returned. Retrieval is traced as a LangSmith span.',
               },
               {
                 step: '3. Prompt construction',
@@ -192,11 +236,15 @@ export default function ArchitecturePage() {
               },
               {
                 step: '4. Streaming generation',
-                desc: 'gpt-4o-mini generates a grounded response using the full conversation history + retrieved context. The response and source citations stream to the UI simultaneously via Vercel AI SDK.',
+                desc: 'gpt-4o-mini generates a grounded response using the full conversation history + retrieved context. Tokens, latency, and finish reason are logged on completion. The response and source citations stream to the UI simultaneously via Vercel AI SDK.',
               },
               {
-                step: '5. Ingestion (one-time)',
-                desc: '86 markdown documents from the SmartCartCommerce knowledge base are chunked by section headers, embedded, and upserted into Pinecone. Re-run npm run ingest when the KB changes.',
+                step: '5. Source doc viewer',
+                desc: 'Each cited source is clickable. Clicking opens a modal showing the full document with the retrieved section highlighted and auto-scrolled into view. Content is served from S3 if the doc was edited in admin, otherwise from the bundled data/kb files.',
+              },
+              {
+                step: '6. Ingestion & admin',
+                desc: '87 markdown documents are bundled in data/kb and indexed via npm run ingest. The /admin console lets you edit any doc with a live preview and re-index it to Pinecone in one click. Edits are persisted in AWS S3.',
               },
             ].map((item) => (
               <li key={item.step} className="flex gap-3 text-sm">
@@ -205,6 +253,49 @@ export default function ArchitecturePage() {
               </li>
             ))}
           </ol>
+        </div>
+
+        {/* ── What's been shipped ── */}
+        <div className="mt-14 mb-4">
+          <div className="flex items-center justify-between gap-4 mb-1">
+            <h2 className="text-xl sm:text-2xl font-semibold text-stone-900">
+              What&apos;s been shipped
+            </h2>
+            <span className="flex-shrink-0 text-xs bg-green-700 text-white px-3 py-1.5 rounded-full font-medium">
+              ✓ Live
+            </span>
+          </div>
+          <p className="text-sm text-stone-500 max-w-2xl">
+            Features built beyond the core RAG pipeline: evaluation, observability, a source viewer, and a live KB admin console.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          {SHIPPED.map((f) => (
+            <div
+              key={f.title}
+              className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm flex flex-col gap-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{f.icon}</span>
+                  <h3 className="text-sm font-semibold text-stone-800">{f.title}</h3>
+                </div>
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${f.badgeColor}`}>
+                  {f.badge}
+                </span>
+              </div>
+              <p className="text-[10px] font-mono text-stone-400">{f.stack}</p>
+              <ul className="space-y-1.5">
+                {f.items.map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-xs text-stone-600">
+                    <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
         {/* ── Future Enhancements ── */}
@@ -218,7 +309,7 @@ export default function ArchitecturePage() {
             </span>
           </div>
           <p className="text-sm text-stone-500 max-w-2xl">
-            The current system is production-ready v1 RAG — better than 80% of what's shipped today.
+            The current system is production-ready v1 RAG — better than 80% of what&apos;s shipped today.
             Below are the high-impact upgrades that separate it from 2025-grade AI products, ordered by ROI.
           </p>
         </div>
@@ -359,7 +450,7 @@ export default function ArchitecturePage() {
         </div>
 
         <p className="text-center text-xs text-stone-400 mt-8 pb-4">
-          SmartCart Knowledge Assistant · Built with Next.js, OpenAI, Pinecone · Vercel AI SDK
+          SmartCart Knowledge Assistant · Next.js · OpenAI · Pinecone · AWS S3 · Braintrust · LangSmith · Vercel
         </p>
       </main>
     </div>

@@ -18,9 +18,14 @@ flowchart TD
         STREAM["Vercel AI SDK\nstreamText · data stream\nSources streamed first"]:::step
     end
 
+    subgraph OBS["LangSmith Observability"]
+        direction LR
+        LS["LangSmith\ntraceable wrappers"]:::obs
+    end
+
     subgraph INGEST["Ingestion (one-time · npm run ingest)"]
         direction LR
-        KB["📁 Knowledge Base\n86 markdown docs"]:::kb
+        KB["📁 Knowledge Base\n87 markdown docs\nbundled in data/kb"]:::kb
         CHUNK["Markdown Chunker\nSplit by ## headers\n3000 char max"]:::step
         CHUNKS["856 chunks\nwith metadata"]:::step
         EMBI["OpenAI Embeddings\nbatch of 96"]:::openai
@@ -37,6 +42,7 @@ flowchart TD
     LLM --> STREAM
     STREAM -->|"tokens + sources"| UI
     UI -->|"localStorage"| PERSIST[("💾 Conversation\nHistory")]:::storage
+    EMB & RET -.->|"traced"| LS
 
     KB --> CHUNK --> CHUNKS --> EMBI --> UPSERT
 
@@ -47,6 +53,7 @@ flowchart TD
     classDef kb fill:#44403c,stroke:#78716c,color:#faf8f4
     classDef step fill:#fff8ed,stroke:#d4a017,color:#1c1917
     classDef storage fill:#292524,stroke:#57534e,color:#faf8f4
+    classDef obs fill:#4f46e5,stroke:#3730a3,color:#fff
 `;
 
 const PERSONA_FLOW = `
@@ -82,6 +89,42 @@ flowchart LR
     classDef doc fill:#fff8ed,stroke:#d4a017,color:#1c1917
 `;
 
+const PLATFORM_FLOW = `
+flowchart LR
+    subgraph EVAL["Eval Pipeline (npm run eval)"]
+        direction TB
+        GD["20 golden Q&A cases\n3 personas · 5 categories"]:::evalnode
+        BT["Braintrust Eval runner\nexperiment tracking"]:::evalnode
+        SC["LLM-as-judge scorers\nAnswerRelevancy\nFaithfulness · ContextRecall"]:::evalnode
+        GD --> BT --> SC
+    end
+
+    subgraph ADMIN["Admin KB Console (/admin)"]
+        direction TB
+        LIST["87 docs listed\nby category"]:::adminnode
+        ED["Markdown editor\n+ live preview tab"]:::adminnode
+        RI["Save & Re-index\nre-chunk · re-embed\nupsert to Pinecone"]:::adminnode
+        S3["AWS S3\npersistent edit store\nkb/<relPath>"]:::s3node
+        LIST --> ED --> RI
+        RI -->|"saves"| S3
+        S3 -.->|"served on load"| ED
+    end
+
+    subgraph VIEWER["Source Doc Viewer"]
+        direction TB
+        SRC["Click cited source"]:::viewernode
+        MODAL["Full doc modal\nhighlighted section\nauto-scroll"]:::viewernode
+        S3V["S3-first content\nfallback to data/kb"]:::s3node
+        SRC --> MODAL
+        MODAL -->|"fetches"| S3V
+    end
+
+    classDef evalnode fill:#f0fdf4,stroke:#22c55e,color:#15803d
+    classDef adminnode fill:#fefce8,stroke:#eab308,color:#854d0e
+    classDef s3node fill:#ff9900,stroke:#e68a00,color:#fff
+    classDef viewernode fill:#eff6ff,stroke:#3b82f6,color:#1d4ed8
+`;
+
 export function ArchitectureDiagram() {
   return (
     <div className="space-y-6">
@@ -99,6 +142,14 @@ export function ArchitectureDiagram() {
           Persona → Knowledge Base Routing
         </h2>
         <MermaidDiagram chart={PERSONA_FLOW} />
+      </div>
+
+      {/* Platform features */}
+      <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm overflow-x-auto">
+        <h2 className="text-sm font-semibold text-stone-700 mb-5">
+          Platform Features — Eval · Admin Console · Source Viewer
+        </h2>
+        <MermaidDiagram chart={PLATFORM_FLOW} />
       </div>
     </div>
   );
