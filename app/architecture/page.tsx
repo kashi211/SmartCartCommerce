@@ -153,19 +153,6 @@ const SHIPPED = [
   },
 ];
 
-const ENHANCEMENTS = [
-  {
-    priority: 'Medium',
-    priorityColor: 'bg-amber-100 text-amber-700',
-    title: 'Dynamic model routing',
-    impact: 'Better answers where it matters, lower cost where it doesn\'t',
-    current: 'gpt-4o-mini for all queries',
-    problem:
-      'Simple FAQ questions (return window, shipping cost) don\'t need a strong model. Complex multi-step brand-partner compliance questions do.',
-    upgrade:
-      'Route by persona and query complexity: Customer simple → gpt-4o-mini, Concierge / Brand Partner or detected complexity → gpt-4o. Complexity can be detected by a cheap classifier or heuristic (query length, keyword presence).',
-  },
-];
 
 export default function ArchitecturePage() {
   return (
@@ -307,89 +294,13 @@ export default function ArchitecturePage() {
           ))}
         </div>
 
-        {/* ── Future Enhancements ── */}
-        <div className="mt-16 mb-2">
-          <div className="flex items-start justify-between gap-4 mb-1">
-            <h2 className="text-xl sm:text-2xl font-semibold text-stone-900">
-              Future Enhancements
-            </h2>
-            <span className="flex-shrink-0 text-xs bg-stone-800 text-stone-200 px-3 py-1.5 rounded-full font-medium mt-1">
-              v1 → Modern RAG
-            </span>
-          </div>
-          <p className="text-sm text-stone-500 max-w-2xl">
-            8 of the original 9 planned enhancements have been shipped. One remaining item below.
-          </p>
-        </div>
-
-        {/* Priority legend */}
-        <div className="flex items-center gap-3 mb-6 mt-4">
-          <span className="text-xs text-stone-400">Priority:</span>
-          {[
-            { label: 'High', color: 'bg-red-100 text-red-700' },
-            { label: 'Medium', color: 'bg-amber-100 text-amber-700' },
-            { label: 'Low', color: 'bg-blue-100 text-blue-700' },
-          ].map((p) => (
-            <span key={p.label} className={`text-xs font-medium px-2.5 py-1 rounded-full ${p.color}`}>
-              {p.label}
-            </span>
-          ))}
-        </div>
-
-        <div className="space-y-4">
-          {ENHANCEMENTS.map((e, i) => (
-            <div
-              key={e.title}
-              className="bg-white rounded-xl border border-stone-200 p-5 sm:p-6 shadow-sm"
-            >
-              <div className="flex items-start gap-3 mb-3">
-                <span className="text-stone-400 text-sm font-mono mt-0.5 w-5 flex-shrink-0">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h3 className="text-sm font-semibold text-stone-800">{e.title}</h3>
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${e.priorityColor}`}>
-                      {e.priority}
-                    </span>
-                  </div>
-                  <p className="text-xs text-brand-gold font-medium">{e.impact}</p>
-                </div>
-              </div>
-
-              <div className="ml-8 space-y-3">
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div className="bg-stone-50 rounded-lg p-3">
-                    <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wide mb-1">
-                      Current
-                    </p>
-                    <p className="text-xs text-stone-600">{e.current}</p>
-                  </div>
-                  <div className="bg-red-50 rounded-lg p-3">
-                    <p className="text-[11px] font-semibold text-red-400 uppercase tracking-wide mb-1">
-                      Problem
-                    </p>
-                    <p className="text-xs text-stone-600">{e.problem}</p>
-                  </div>
-                </div>
-                <div className="bg-green-50 border border-green-100 rounded-lg p-3">
-                  <p className="text-[11px] font-semibold text-green-600 uppercase tracking-wide mb-1">
-                    Upgrade path
-                  </p>
-                  <p className="text-xs text-stone-600 leading-relaxed">{e.upgrade}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
         {/* Modern 2025 RAG pipeline summary */}
         <div className="mt-10 bg-brand-800 rounded-xl p-6 sm:p-8">
           <h3 className="text-white font-semibold text-base mb-1">
-            What modern 2025 RAG looks like
+            The full modern RAG pipeline — shipped
           </h3>
           <p className="text-stone-400 text-xs mb-6">
-            If all high-priority enhancements are applied, the pipeline becomes:
+            All planned enhancements have been implemented. This is the complete pipeline:
           </p>
 
           <div className="grid sm:grid-cols-2 gap-6">
