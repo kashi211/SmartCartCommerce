@@ -52,8 +52,7 @@ function splitLongSection(text: string, maxChars: number): string[] {
   return chunks;
 }
 
-export function chunkMarkdownFile(filePath: string, relPath: string): Chunk[] {
-  const content = fs.readFileSync(filePath, 'utf-8');
+export function chunkMarkdownContent(content: string, relPath: string): Chunk[] {
   const docTitle = extractDocTitle(content, relPath);
   const category = categoryFromPath(relPath);
 
@@ -102,6 +101,11 @@ export function chunkMarkdownFile(filePath: string, relPath: string): Chunk[] {
   }
 
   return chunks;
+}
+
+export function chunkMarkdownFile(filePath: string, relPath: string): Chunk[] {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  return chunkMarkdownContent(content, relPath);
 }
 
 export function findMarkdownFiles(kbRoot: string): Array<{ absPath: string; relPath: string }> {

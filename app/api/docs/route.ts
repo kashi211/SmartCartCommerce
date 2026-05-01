@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 const KB_ROOT = process.env.KB_PATH
   ? path.resolve(process.cwd(), process.env.KB_PATH)
-  : path.resolve(process.cwd(), '../SmartCartCommerce-KnowledgeBase');
+  : path.resolve(process.cwd(), 'data/kb');
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);

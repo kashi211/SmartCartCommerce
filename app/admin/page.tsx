@@ -14,7 +14,7 @@ interface DocMeta {
   charCount: number;
 }
 
-type ReindexStatus = 'idle' | 'saving' | 'reindexing' | 'done' | 'error';
+type ReindexStatus = 'idle' | 'reindexing' | 'done' | 'error';
 
 function categoryColor(category: string): string {
   const map: Record<string, string> = {
@@ -64,33 +64,22 @@ function EditorPanel({ doc, onClose, onSaved }: EditorPanelProps) {
 
   const handleSaveAndReindex = useCallback(async () => {
     try {
-      // 1. Save file
-      setStatus('saving');
-      setStatusMsg('Saving file…');
-      const saveRes = await fetch('/api/admin/docs', {
-        method: 'PUT',
+      setStatus('reindexing');
+      setStatusMsg('Re-chunking and re-embedding…');
+
+      const res = await fetch('/api/admin/reindex', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: doc.relPath, content }),
       });
-      if (!saveRes.ok) throw new Error((await saveRes.json()).error ?? 'Save failed');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Reindex failed');
 
-      // 2. Re-index
-      setStatus('reindexing');
-      setStatusMsg('Re-chunking and re-embedding…');
-      const reindexRes = await fetch('/api/admin/reindex', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: doc.relPath }),
-      });
-      const reindexData = await reindexRes.json();
-      if (!reindexRes.ok) throw new Error(reindexData.error ?? 'Reindex failed');
-
+      const savedNote = data.fileSaved ? ' · file saved' : ' · Pinecone only (Vercel)';
       setStatus('done');
-      setStatusMsg(`Done — deleted ${reindexData.deleted} old vectors, indexed ${reindexData.indexed} new chunks`);
+      setStatusMsg(`Done — deleted ${data.deleted} old vectors, indexed ${data.indexed} new chunks${savedNote}`);
       setDirty(false);
-
-      // Estimate new chunk count from response
-      onSaved({ ...doc, chunkCount: reindexData.indexed });
+      onSaved({ ...doc, chunkCount: data.indexed });
     } catch (err) {
       setStatus('error');
       setStatusMsg(String(err));
@@ -189,12 +178,11 @@ function EditorPanel({ doc, onClose, onSaved }: EditorPanelProps) {
                 'flex items-center gap-2 text-xs mb-3 px-3 py-2 rounded-lg',
                 status === 'done' && 'bg-green-50 text-green-700',
                 status === 'error' && 'bg-red-50 text-red-700',
-                (status === 'saving' || status === 'reindexing') &&
-                  'bg-amber-50 text-amber-700',
+                status === 'reindexing' && 'bg-amber-50 text-amber-700',
               )}
             >
               {status === 'error' && <AlertCircle size={12} />}
-              {(status === 'saving' || status === 'reindexing') && (
+              {status === 'reindexing' && (
                 <RefreshCw size={12} className="animate-spin" />
               )}
               {statusMsg}
@@ -214,15 +202,15 @@ function EditorPanel({ doc, onClose, onSaved }: EditorPanelProps) {
               </button>
               <button
                 onClick={handleSaveAndReindex}
-                disabled={status === 'saving' || status === 'reindexing' || !dirty}
+                disabled={status === 'reindexing' || !dirty}
                 className={cn(
                   'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                  dirty && status !== 'saving' && status !== 'reindexing'
+                  dirty && status !== 'reindexing'
                     ? 'bg-amber-600 hover:bg-amber-700 text-white'
                     : 'bg-stone-200 text-stone-400 cursor-not-allowed',
                 )}
               >
-                {status === 'saving' || status === 'reindexing' ? (
+                {status === 'reindexing' ? (
                   <RefreshCw size={12} className="animate-spin" />
                 ) : (
                   <Save size={12} />

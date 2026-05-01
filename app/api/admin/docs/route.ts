@@ -5,7 +5,7 @@ import { findMarkdownFiles, chunkMarkdownFile } from '@/lib/rag/chunker';
 
 const KB_ROOT = process.env.KB_PATH
   ? path.resolve(process.cwd(), process.env.KB_PATH)
-  : path.resolve(process.cwd(), '../SmartCartCommerce-KnowledgeBase');
+  : path.resolve(process.cwd(), 'data/kb');
 
 function safePath(relPath: string): string | null {
   const abs = path.resolve(KB_ROOT, relPath);

@@ -10,7 +10,7 @@ import type { PineconeMetadata } from '../lib/types';
 
 const KB_PATH = process.env.KB_PATH
   ? path.resolve(process.cwd(), process.env.KB_PATH)
-  : path.resolve(process.cwd(), '../SmartCartCommerce-KnowledgeBase');
+  : path.resolve(process.cwd(), 'data/kb');
 
 const EMBED_BATCH = 96;
 
